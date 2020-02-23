@@ -324,7 +324,6 @@ where
     /// assert_eq!(table.exact_match(y, 56), Some(&12));
     /// assert_eq!(table.exact_match(z, 56), Some(&13));
     /// ```
-
     pub fn iter_mut(&mut self) -> IterMut<A, T> {
         IterMut {
             inner: self.inner.iter_mut(),

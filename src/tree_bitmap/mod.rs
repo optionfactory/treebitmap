@@ -167,7 +167,8 @@ impl<T: Sized> TreeBitmap<T> {
         }
     }
 
-    /// All matches lookup of ```nibbles```. Returns of Vec of tuples, each containing bits matched as u32 and a reference to T.
+    /// All matches lookup of ```nibbles```. Returns of Vec of tuples, each containing bits matched as u32,
+    /// result handle and result index as u32.
     fn matches_internal(&self, nibbles: &[u8]) -> Vec<(u32, AllocatorHandle, u32)> {
         let mut cur_hdl = self.root_handle();
         let mut cur_index = 0;
@@ -217,7 +218,7 @@ impl<T: Sized> TreeBitmap<T> {
         matches
     }
 
-    /// All matches lookup of ```nibbles```. Returns of Vec of tuples, each containing bits matched as u32 and a reference to T.
+    /// All matches lookup of ```nibbles```. Returns of iterator of tuples, each containing bits matched as u32 and a reference to T.
     pub fn matches(&self, nibbles: &[u8]) -> impl Iterator<Item = (u32, &T)> {
         self.matches_internal(nibbles).into_iter().map(
             move |(bits_matched, result_hdl, result_index)| {
@@ -226,7 +227,7 @@ impl<T: Sized> TreeBitmap<T> {
         )
     }
 
-    /// All matches lookup of ```nibbles```. Returns of Vec of tuples, each containing bits matched as u32 and a reference to T.
+    /// All matches lookup of ```nibbles```. Returns of iterator of tuples, each containing bits matched as u32 and a mutable reference to T.
     pub fn matches_mut(&mut self, nibbles: &[u8]) -> MatchesMut<T> {
         let path = self.matches_internal(nibbles).into_iter();
         MatchesMut { inner: self, path }
