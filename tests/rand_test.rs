@@ -128,6 +128,7 @@ impl<T, A: Address> SlowRouter<T, A> {
 }
 
 #[test]
+#[cfg(not(miri))]  // miri is too slow
 fn ipv6_random_test() {
     for _ in 0..NUMBER_OF_ITERS {
         let mut tbl = IpLookupTable::new();
@@ -173,6 +174,7 @@ fn ipv6_random_test() {
 }
 
 #[test]
+#[cfg(not(miri))] // miri is too slow
 fn ipv4_random_test() {
     for _ in 0..NUMBER_OF_ITERS {
         let mut tbl = IpLookupTable::new();
