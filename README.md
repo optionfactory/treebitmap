@@ -1,5 +1,7 @@
 # Tree-Bitmap: Fast lookup table for IPv4/IPv6 prefixes
 
+> Forked from https://github.com/hroi/treebitmap
+
 This crate provides a datastructure for fast IP address lookups.
 It aims at fast lookup times, and a reasonable memory footprint.
 
@@ -8,7 +10,7 @@ W. Eatherton, Z. Dittia, G. Varghes.
 
 ## Documentation
 
-Rustdoc: https://docs.rs/treebitmap/
+Rustdoc: https://docs.rs/ip_network_table-deps-treebitmap/
 
 ## Illustration
 An example illustration of a trie representing a routing table containing
