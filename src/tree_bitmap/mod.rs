@@ -7,6 +7,7 @@
 use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
+use const_for::const_for;
 use std::cmp;
 
 mod allocator;
@@ -23,6 +24,29 @@ pub struct TreeBitmap<T: Sized> {
     len: usize,
     should_drop: bool, // drop contents on drop?
 }
+
+static STAR_MASKS: [u32; 80] = {
+
+    static OFFSETS: [usize; 5] = [0, 1, 3, 7, 16];
+    static MSB: u32 = 1 << 31;
+    let mut masks = [0; 80];
+    const_for!(left in 0usize..5 => {
+        const_for!(nibble in 0..16 => {
+            let mut mask = 0;
+            const_for!(col in left..5 => {
+                let prefix = nibble >> (4-left);
+                let stride = 2usize.pow((col - left) as u32);
+                let offset = OFFSETS[col];
+                let start = offset + prefix * stride;
+                const_for!(bit in start..start + stride => {
+                    mask |= MSB >> bit;
+                });
+            });
+            masks[(left << 4) | nibble] = mask;
+        });
+    });
+    masks
+};
 
 impl<T: Sized> TreeBitmap<T> {
     /// Returns ````TreeBitmap ```` with 0 start capacity.
@@ -146,6 +170,49 @@ impl<T: Sized> TreeBitmap<T> {
         best_match
     }
 
+    fn any_matching_internal(&self, nibbles: &[u8], masklen: u32) -> bool {
+        let mut cur_hdl = self.root_handle();
+        let mut cur_index = 0;
+        let mut bits_searched = 0;
+
+        let mut loop_count = 0;
+        loop {
+            let nibble = if loop_count < nibbles.len() {
+                nibbles[loop_count]
+            } else {
+                0
+            };
+            loop_count += 1;
+
+            let nibble = nibble & 0xf;
+            let cur_node = *self.trienodes.get(&cur_hdl, cur_index);
+            let match_mask = node::MATCH_MASKS[nibble as usize];
+            let bits_left = 0.max(masklen - bits_searched);
+
+            if bits_left <= 4 {
+                let star_mask_idx = (bits_left as usize) << 4 | (nibble as usize);
+                let star_mask = * unsafe { STAR_MASKS.get_unchecked(star_mask_idx) };
+                return matches!(cur_node.match_internal(star_mask), MatchResult::Match(_, _, _)) ||
+                    matches!(cur_node.match_external(star_mask), MatchResult::Chase(_, _));
+            }
+            if cur_node.is_endnode() {
+                return false;
+            }
+
+            match cur_node.match_external(match_mask) {
+                MatchResult::Chase(child_hdl, child_index) => {
+                    bits_searched += 4;
+                    cur_hdl = child_hdl;
+                    cur_index = child_index;
+                }
+                MatchResult::None => {
+                    return false;
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
     /// longest match lookup of ```nibbles```. Returns bits matched as u32, and reference to T.
     pub fn longest_match(&self, nibbles: &[u8]) -> Option<(u32, &T)> {
         match self.longest_match_internal(&nibbles) {
@@ -219,12 +286,15 @@ impl<T: Sized> TreeBitmap<T> {
     }
 
     /// All matches lookup of ```nibbles```. Returns of iterator of tuples, each containing bits matched as u32 and a reference to T.
-    pub fn matches(&self, nibbles: &[u8]) -> impl Iterator<Item = (u32, &T)> {
+    pub fn matches(&self, nibbles: &[u8]) -> impl Iterator<Item=(u32, &T)> {
         self.matches_internal(nibbles).into_iter().map(
             move |(bits_matched, result_hdl, result_index)| {
                 (bits_matched, self.results.get(&result_hdl, result_index))
             },
         )
+    }
+    pub fn any_matched_by(&self, nibbles: &[u8], masklen: u32) -> bool {
+        self.any_matching_internal(nibbles, masklen)
     }
 
     /// All matches lookup of ```nibbles```. Returns of iterator of tuples, each containing bits matched as u32 and a mutable reference to T.
@@ -272,7 +342,7 @@ impl<T: Sized> TreeBitmap<T> {
                 };
                 let result_index = (cur_node.internal()
                     >> (bitmap & node::END_BIT_MASK).trailing_zeros())
-                .count_ones();
+                    .count_ones();
 
                 if cur_node.internal() & (bitmap & node::END_BIT_MASK) > 0 {
                     // key already exists!
@@ -363,7 +433,7 @@ impl<T: Sized> TreeBitmap<T> {
                         Some((result_hdl, result_index))
                     }
                     _ => None,
-                }
+                };
             }
 
             match cur_node.match_external(bitmap) {
@@ -492,14 +562,14 @@ pub struct IterMut<'a, T: 'a> {
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
-static PREFIX_OF_BIT: [u8; 32] = [// 0       1       2      3        4       5       6       7
-                                  0b0000, 0b0000, 0b1000, 0b0000, 0b0100, 0b1000, 0b1100, 0b0000,
-                                  // 8       9      10      11      12      13      14      15
-                                  0b0010, 0b0100, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110,      0,
-                                  // 16      17      18      19      20      21      22      23
-                                  0b0000, 0b0001, 0b0010, 0b0011, 0b0100, 0b0101, 0b0110, 0b0111,
-                                  // 24      25      26      27      28      29      30      31
-                                  0b1000, 0b1001, 0b1010, 0b1011, 0b1100, 0b1101, 0b1110, 0b1111];
+static PREFIX_OF_BIT: [u8; 32] = [ // 0       1       2      3        4       5       6       7
+    0b0000, 0b0000, 0b1000, 0b0000, 0b0100, 0b1000, 0b1100, 0b0000,
+    // 8       9      10      11      12      13      14      15
+    0b0010, 0b0100, 0b0110, 0b1000, 0b1010, 0b1100, 0b1110, 0,
+    // 16      17      18      19      20      21      22      23
+    0b0000, 0b0001, 0b0010, 0b0011, 0b0100, 0b0101, 0b0110, 0b0111,
+    // 24      25      26      27      28      29      30      31
+    0b1000, 0b1001, 0b1010, 0b1011, 0b1100, 0b1101, 0b1110, 0b1111];
 
 fn next<T: Sized>(
     trie: &TreeBitmap<T>,

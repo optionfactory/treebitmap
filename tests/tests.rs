@@ -4,13 +4,11 @@
 // This file may not be copied, modified, or distributed except according to those terms.
 //
 
-extern crate treebitmap;
-
 mod rand_test;
 
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
-use treebitmap::*;
+use mytreebitmap::*;
 
 #[test]
 #[should_panic]
@@ -98,6 +96,39 @@ fn matches6() {
         tbm.matches(Ipv6Addr::from_str("2a00:0099::0").unwrap())
             .count()
     );
+}
+
+#[test]
+fn any_matching_cidrv4() {
+    let mut tbm = IpLookupTable::new();
+    tbm.insert(Ipv4Addr::new(10, 0, 0, 1), 32, 100002);
+    tbm.insert(Ipv4Addr::new(100, 64, 0, 0), 32, 10064024);
+    tbm.insert(Ipv4Addr::new(100, 64, 1, 0), 32, 10064124);
+    tbm.insert(Ipv4Addr::new(100, 64, 0, 0), 32, 100004);
+    // exact
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 1), 32));
+    // contained, with various bits_left alignments
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 31));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 30));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 29));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 28));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 27));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 26));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 25));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 24));
+    assert!(tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 0), 0));
+    // not contained
+    assert!(!tbm.any_matched_by(Ipv4Addr::new(20, 0, 0, 0), 24));
+    assert!(!tbm.any_matched_by(Ipv4Addr::new(10, 0, 0, 3), 31));
+
+}
+
+#[test]
+fn any_matching_cidrv6() {
+    let mut tbm = IpLookupTable::new();
+    tbm.insert(Ipv6Addr::new(0x2001, 0x0db8, 0x85a4, 0x0001, 0x0000, 0x8a2e, 0x0370, 0x7334), 128, 1);
+    assert!(tbm.any_matched_by(Ipv6Addr::new(0x2001, 0x0db8, 0x85a4, 0x0001, 0x0000, 0x8a2e, 0x0370, 0x7334), 64));
+    assert!(!tbm.any_matched_by(Ipv6Addr::new(0x2001, 0x0db8, 0x85a4, 0x0000, 0x0000, 0x8a2e, 0x0370, 0x7334), 64));
 }
 
 #[test]

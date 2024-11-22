@@ -122,6 +122,12 @@ where
         self.inner.remove(&ip.nibbles().as_ref(), masklen)
     }
 
+    /// Checks whether any subnet in the table is matched by (is contained) the passed in CIDR
+    pub fn any_matched_by(&self, ip: A, masklen: u32) -> bool {
+        self.inner
+            .any_matched_by(ip.nibbles().as_ref(), masklen)
+    }
+
     /// Perform exact match lookup of `ip`/`masklen` and return the
     /// value.
     ///

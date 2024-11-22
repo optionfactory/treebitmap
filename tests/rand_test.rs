@@ -1,13 +1,11 @@
-extern crate rand;
-extern crate treebitmap;
 
 use std::mem;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use self::rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng};
 
-use treebitmap::address::Address;
-use treebitmap::*;
+use mytreebitmap::*;
+use mytreebitmap::address::*;
 
 const NUMBER_OF_ITERS: usize = 10; // number of times to run each test
 const NUMBER_OF_PEERS: usize = 64; // number of distinct values
